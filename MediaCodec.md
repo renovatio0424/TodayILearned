@@ -32,7 +32,7 @@ ByteBuffer 모드를 사용할때, 당신은 **Image** 클래스와 **getInput/O
 BUFFER_FLAG_PARTIAL_FRAME으로 플래그가 지정되지 않는 한 프레임 / 액세스 단위 경계에서 시작 또는 끝납니다.
 
 ## Raw Audio Buffers
-Raw audio buffer들은 
-
-
-
+Raw Audio Buffer 는 PCM 오디오 데이터의 전체 프레임을 포함하며, 이는 채널 순서로 각 채널에 대해 하나의 샘플입니다.
+각 PCM 오디오 샘플은 기본 바이트 순서로 모두 16 비트 signed integer 또는 float 입니다
+float PCM 인코딩된 Raw audio buffer 는 오직 
+Raw Audio Buffer 는 PCM 오디오 데이터의 전체 프레임을 포함하며, 이는 채널 순서로 각 채널에 대해 하나의 샘플입니다.샘
