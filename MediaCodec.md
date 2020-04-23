@@ -35,4 +35,64 @@ BUFFER_FLAG_PARTIAL_FRAME으로 플래그가 지정되지 않는 한 프레임 /
 Raw Audio Buffer 는 PCM 오디오 데이터의 전체 프레임을 포함하며, 이는 채널 순서로 각 채널에 대해 하나의 샘플입니다.
 각 PCM 오디오 샘플은 기본 바이트 순서로 모두 16 비트 signed integer 또는 float 입니다
 float PCM 인코딩된 Raw audio buffer 는 오직 
-Raw Audio Buffer 는 PCM 오디오 데이터의 전체 프레임을 포함하며, 이는 채널 순서로 각 채널에 대해 하나의 샘플입니다.샘
+Raw Audio Buffer 는 PCM 오디오 데이터의 전체 프레임을 포함하며, 이는 채널 순서로 각 채널에 대해 하나의 샘플입니다. 
+
+float PCM 인코딩된 Raw Audio Buffer는 **MediaCodec # configure (…)** 로 MediaFormat의 **MediaFormat # KEY_PCM_ENCODING**이 **AudioFormat # ENCODING_PCM_FLOAT**로 설정되고 디코더의 경우 **getOutputFormat()** 또는 인코더의 경우 **getInputFormat()** 으로 확인 된 경우에만 가능합니다.
+
+~~~java
+static boolean isPcmFloat(MediaFormat format) {
+  return format.getInteger(MediaFormat.KEY_PCM_ENCODING, AudioFormat.ENCODING_PCM_16BIT)
+      == AudioFormat.ENCODING_PCM_FLOAT;
+}
+~~~
+
+짧은 배열로 16bit signed 된 integer audio data를 추출하기 위해 아래 코드를 사용하면 됩니다.
+
+~~~java
+ // Assumes the buffer PCM encoding is 16 bit.
+short[] getSamplesForChannel(MediaCodec codec, int bufferId, int channelIx) {
+  ByteBuffer outputBuffer = codec.getOutputBuffer(bufferId);
+  MediaFormat format = codec.getOutputFormat(bufferId);
+  ShortBuffer samples = outputBuffer.order(ByteOrder.nativeOrder()).asShortBuffer();
+  int numChannels = format.getInteger(MediaFormat.KEY_CHANNEL_COUNT);
+  if (channelIx < 0 || channelIx >= numChannels) {
+    return null;
+  }
+  short[] res = new short[samples.remaining() / numChannels];
+  for (int i = 0; i < res.length; ++i) {
+    res[i] = samples.get(i * numChannels + channelIx);
+  }
+  return res;
+ }
+~~~
+
+## Raw Video Buffers
+ByteBuffer 모드에서 비디오 버퍼들은 **MediaFormat#KEY_COLOR_FORMAT** 에 따라 배치되게 됩니다. 
+당신은 다음의 API로부터 지원되는 color format들을 배열로서 받을 수 있습니다
+
+1. getCodecInfo()
+2. MediaCodecInfo#getCapabilitiesForType
+3. CodecCapabilities#colorFormats
+
+비디오 코덱들은 3가지 종류의 color format들을 지원합니다. 
+
+1. native raw video format 
+
+    CodecCapabilites#COLOR_FormatSurface로 표시되며, input / output Surface 와 사용 가능합니다
+
+2. flexible YUV buffers (CodecCapabilities#COLOR_FormatYUV420Flexible)
+
+    getInput/outputImage(int) 를 사용함으로써 Bytebuffer 모드 뿐만 아니라 input/output Surface와 함께 사용가능합니다. 
+
+3. other, specific formats
+
+    일반적으로 ByteBuffer 모드에서만 사용되는 format입니다. 몇몇 color format들은 공급 업체마다 다릅니다. 다른 것들은 CodecCapabilities에 정의 되어있습  니다. 유연한 형식과 동등한 색상 형식의 경우 getInput/OutputImage(int)를 계속 사용할 수 있습니다. 
+    
+* 모든 비디오 코덱들은 LOLLIPOP_MR1 부터 flexible YUV 4:2:0 버퍼를 지원합니다. 
+
+## 구형 디바이스에서 Raw Video ByteBuffer 접근하기
+
+LOLLIPOP 및 이미지 지원하기전에 raw output buffer의 레이아웃을 이해하려면 **MediaFOrmat#KEY_STRIDE** 및 **MediaFormat#KEY_SLICE_HEIGHT** 출력형식 값을 사용해야합니다. 
+
+> 일부 장치에서는 슬라이스 높이가 0으로 보급됩니다. 이는 슬라이스 높이가 프레임 높이와 같거나 슬라이스 높이가 일부 값에 정렬 된 프레임 높이 (일반적으로 2). 불행히도> 이 경우 실제 슬라이스 높이를 알려주는 표준적이고 간단한 방법은 없습니다. 또한 평면 형식의 U 평면의 수직 보폭도 지정되거나 정의되지 않지만 일반적으로 슬라이스 높이의 > 절반입니다.
+
