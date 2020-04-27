@@ -86,13 +86,39 @@ ByteBuffer 모드에서 비디오 버퍼들은 **MediaFormat#KEY_COLOR_FORMAT** 
 
 3. other, specific formats
 
-    일반적으로 ByteBuffer 모드에서만 사용되는 format입니다. 몇몇 color format들은 공급 업체마다 다릅니다. 다른 것들은 CodecCapabilities에 정의 되어있습  니다. 유연한 형식과 동등한 색상 형식의 경우 getInput/OutputImage(int)를 계속 사용할 수 있습니다. 
+    일반적으로 ByteBuffer 모드에서만 사용되는 format입니다. 몇몇 color format들은 공급 업체마다 다릅니다. 다른 것들은 CodecCapabilities에 정의 되어있     습니다. 유연한 형식과 동등한 색상 형식의 경우 getInput/OutputImage(int)를 계속 사용할 수 있습니다. 
     
 * 모든 비디오 코덱들은 LOLLIPOP_MR1 부터 flexible YUV 4:2:0 버퍼를 지원합니다. 
 
 ## 구형 디바이스에서 Raw Video ByteBuffer 접근하기
 
-LOLLIPOP 및 이미지 지원하기전에 raw output buffer의 레이아웃을 이해하려면 **MediaFOrmat#KEY_STRIDE** 및 **MediaFormat#KEY_SLICE_HEIGHT** 출력형식 값을 사용해야합니다. 
+LOLLIPOP 및 이미지 지원하기전에 raw output buffer의 레이아웃을 이해하려면 **MediaFormat#KEY_STRIDE** 및 **MediaFormat#KEY_SLICE_HEIGHT** 출력형식 값을 사용해야합니다. 
 
-> 일부 장치에서는 슬라이스 높이가 0으로 보급됩니다. 이는 슬라이스 높이가 프레임 높이와 같거나 슬라이스 높이가 일부 값에 정렬 된 프레임 높이 (일반적으로 2). 불행히도> 이 경우 실제 슬라이스 높이를 알려주는 표준적이고 간단한 방법은 없습니다. 또한 평면 형식의 U 평면의 수직 보폭도 지정되거나 정의되지 않지만 일반적으로 슬라이스 높이의 > 절반입니다.
+> 일부 장치에서는 슬라이스 높이가 0으로 보급됩니다. 이는 슬라이스 높이가 프레임 높이와 같거나 슬라이스 높이가 일부 값에 정렬 된 프레임 높이 (일반적으로 2). 
+> 불행히도 이 경우 실제 슬라이스 높이를 알려주는 표준적이고 간단한 방법은 없습니다. 또한 평면 형식의 U 평면의 수직 보폭도 지정되거나 정의되지 않지만 일반적으로 슬라이> 스 높이의 절반입니다.
 
+**MediaFormat # KEY_WIDTH** 및 **MediaFormat # KEY_HEIGHT** 키는 비디오 프레임의 크기를 지정합니다. 그러나 대부분의 경우 비디오 (사진)는 비디오 프레임의 일부만 차지합니다. 이것은 'Crop Rectangle'으로 표시됩니다.
+
+출력 형식에서 원시 출력 이미지의 Crop Rectangle을 가져오려면 다음 키를 사용해야합니다. 이러한 키가 없으면 비디오가 전체 비디오 프레임을 차지합니다. Crop Retangle은 MediaFormat # KEY_ROTATION을 적용하기 전에 출력 프레임의 컨텍스트에서 이해됩니다.
+
+| Format Key    | Type    | Description                                             |
+|---------------|---------|---------------------------------------------------------|
+| "crop-left"   | Integer | The left-coordinate (x) of the crop rectangle           |
+| "crop-top"    | Integer | The top-coordinate (y) of the crop rectangle            |
+| "crop-right"  | Integer | The right-coordinate (x) MINUS 1 of the crop rectangle  |
+| "crop-bottom" | Integer | The bottom-coordinate (y) MINUS 1 of the crop rectangle |
+
+오른쪽 및 아래쪽 좌표는 잘린 출력 이미지의 가장 오른쪽에있는 유효한 열 / 맨 아래에있는 유효한 행의 좌표로 이해 될 수 있습니다.
+회전하기 이전의 비디오 프레임의 사이즈는 다음과 같이 계산됩니다
+
+~~~java
+ MediaFormat format = decoder.getOutputFormat(…);
+ int width = format.getInteger(MediaFormat.KEY_WIDTH);
+ if (format.containsKey("crop-left") && format.containsKey("crop-right")) {
+    width = format.getInteger("crop-right") + 1 - format.getInteger("crop-left");
+ }
+ int height = format.getInteger(MediaFormat.KEY_HEIGHT);
+ if (format.containsKey("crop-top") && format.containsKey("crop-bottom")) {
+    height = format.getInteger("crop-bottom") + 1 - format.getInteger("crop-top");
+ }
+~~~
