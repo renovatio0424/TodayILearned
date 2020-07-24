@@ -1,0 +1,59 @@
+## The many flavors of commit() [(reference)](https://medium.com/@bherbst/the-many-flavors-of-commit-186608a015b1)
+
+~~~
+//error log
+java.lang.IllegalStateException: Can not perform this action after onSaveInstanceState
+    at android.support.v4.app.FragmentManagerImpl.checkStateLoss(FragmentManager.java:1341)
+    at android.support.v4.app.FragmentManagerImpl.enqueueAction(FragmentManager.java:1352)
+    at android.support.v4.app.BackStackRecord.commitInternal(BackStackRecord.java:595)
+    at android.support.v4.app.BackStackRecord.commit(BackStackRecord.java:574)
+~~~
+### 왜 이 exception이 던져지는가?
+- 던져지는 이유 : Activity의 상태를 저장한 후에 **FragmentTransaction** 을 commit 하려했을때 발생하는 현상
+- onSaveInstanceState() 의 역할
+  - 안드로이드 시스템 특성상 런타임중에 많은 제약이 존재함
+  - 시스템이 아무런 경고 없이 해당 프로세스를 죽일 수 있음
+  - 그렇기 때문에 강제 종료되었을 경우 현재 상태를 저장해야할 필요성이 있음
+  - 해당 상태를 저장은 onSaveInstanceState() 함수를 통해 이루어짐
+  - 해당 함수를 통해 강제 종료 상황에서의 상태 유지를 보장할 수 있음
+- 결론 : onSaveInstanceState() 호출 이후에 FragmentTransaction#commit() 이 호출 될 경우 해당 Transaction 은 저장되지 않기 때문에 해당 Activity의 state loss 가 발생하게 된다.
+- 발생 시점 
+: **HoneyComb** 기점으로 onSaveInstanceState() 가 호출되는 시점이 변경됨 
+  
+|                                         | 허니콤 이전 | 허니콤 이후 |
+|-----------------------------------------|---------------|----------------|
+| onPause() 이전에 commit()                 | OK            | OK             |
+| onPause() 와 onStop() 사이에 commit()      | STATE LOSS    | OK             |
+| onStop() 이후에 commit()                  | EXCEPTION     | EXCEPTION      |
+
+- 해결 방법
+  1. Activity Lifecycle method 에서 commit시 주의하세요
+
+      >onResume() 에서 호출하지마세요. 
+      >만약 onCreate가 아닌 다른 시점에서 호출해야한다면 FragmentActivity#onResumeFragments() 또는 Activity#onPostResume() 에서 호출하세요
+    
+  2. 비동기 콜백 함수 안에서 transaction 실행을 피하세요
+  3. 최후의 수단으로 commitAllowinStateLoss() 를 사용하세요
+
+### commit() vs commitAllowingStateLoss()
+FragmentManager가 상태가 저장한 이후에 commit 이 호출이 되었을 경우 
+- Exception 발생 O : commit()
+- Exception 발생 X : commitAllowingStateLoss()
+
+![state loss flow](https://miro.medium.com/max/1072/1*zonHInbvCUVmooJRVYRrDQ.png)
+    
+### commit() vs commitNow() vs executePendingTransactions()
+- commit() : 비동기 실행
+- executePendingTransactions() : 현재 commit한 transaction 만 동기 실행
+- commitNow() : 현재 pending 이거나 commit한 모든 transaction 들에 대해 동기 실행
+
+![commitNow exception](https://miro.medium.com/max/766/1*XN8a1LKwWHf1wzRsrYOMYQ.png)
+
+~~~
+** 주의점 **
+backstack에 추가해야되는 경우 commitNow()는 순서를 보장못합니다. 
+Fragment A를 commit 실행 후 (비동기 실행) Fragment B 를 commitNow() (동기 실행) 했을 경우
+어떤 순서로 Backstack 에 쌓일지 보장 못합니다. 
+
+FragmentPagerAdapter의 경우 정확한 페이지의 순서를 보장합니다. 
+~~~
