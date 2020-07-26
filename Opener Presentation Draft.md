@@ -2,16 +2,22 @@
 
 ## Opener Presentation Draft
 
-Topic 
+### Topic
 
-Process
+    - 나는 안드로이드 개발자로서 어떻게 성장하고 있는가?
+        1. 나는 어떤 사람인가?
+        2. 어떤 사람이 되고 싶은가?
+        3. 어떤 노력을 하고 있는가? 또는 했는가?
+        4. 개선해야할 점은?
+    
+### Process
 
     1. motivate
     2. plan
     3. execution 
     4. feedback
 
-1. My Growth System
+### My Growth System
 
     0. What developer do you want to be? (Goal)
         1. have fun coding 
